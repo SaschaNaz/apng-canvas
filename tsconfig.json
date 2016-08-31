@@ -4,6 +4,7 @@
         "noImplicitAny": true,
         "suppressImplicitAnyIndexErrors": true,
         "sourceMap": true,
+        "declaration": true,
         "outFile": "built/apng-exporter.js"
     },
     "files": [
