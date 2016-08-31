@@ -33,7 +33,7 @@ namespace APNGExporter {
     class FrameDrawer {
         private _canvas: HTMLCanvasElement;
         private _context: CanvasRenderingContext2D;
-        private _previousFrame: Frame;
+        private _previousFrame: DependentFrame;
         private _previousRevertData: ImageData;
 
         constructor(width: number, height: number) {
@@ -43,7 +43,7 @@ namespace APNGExporter {
             this._canvas.height = height;
         }
 
-        async draw(frame: Frame) {
+        async draw(frame: DependentFrame) {
             const context = this._context;
 
             if (this._previousFrame) {
@@ -91,7 +91,7 @@ namespace APNGExporter {
     // "\x89PNG\x0d\x0a\x1a\x0a"
     const PNG_SIGNATURE_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-    export interface Frame {
+    export interface DependentFrame {
         width: number;
         height: number;
         left: number;
@@ -108,7 +108,7 @@ namespace APNGExporter {
         height: number;
         loopCount: number;
         duration: number;
-        frames: Frame[];
+        frames: DependentFrame[];
     }
     /**
      * @param {ArrayBuffer} buffer
@@ -146,8 +146,8 @@ namespace APNGExporter {
         let loopCount: number;
         let duration = 0;
 
-        let frame: Frame = null;
-        const frames: Frame[] = [];
+        let frame: DependentFrame = null;
+        const frames: DependentFrame[] = [];
 
         parseChunks(bytes, (type, bytes, off, length) => {
             switch (type) {
@@ -161,7 +161,7 @@ namespace APNGExporter {
                     break;
                 case "fcTL":
                     if (frame) frames.push(frame);
-                    frame = {} as Frame;
+                    frame = {} as DependentFrame;
                     frame.width = readDWord(bytes, off + 8 + 4);
                     frame.height = readDWord(bytes, off + 8 + 8);
                     frame.left = readDWord(bytes, off + 8 + 12);
@@ -227,21 +227,28 @@ namespace APNGExporter {
         });
     }
 
+    export interface IndependentFrame {
+        blob: Blob;
+        delay: number;
+    }
     export interface IndependentExportResult {
         width: number;
         height: number;
         loopCount: number;
         duration: number;
-        frames: Blob[];
+        frames: IndependentFrame[];
     }
     export async function get(input: ArrayBuffer | Blob): Promise<IndependentExportResult> {
         const dependent = await getDependent(input);
         const drawer = new FrameDrawer(dependent.width, dependent.height);
 
-        const frames: Blob[] = [];
+        const frames: IndependentFrame[] = [];
 
         for (const frame of dependent.frames) {
-            frames.push(await drawer.draw(frame));
+            frames.push({
+                blob: await drawer.draw(frame),
+                delay: frame.delay
+            });
         }
 
         return {

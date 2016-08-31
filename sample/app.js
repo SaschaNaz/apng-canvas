@@ -6,10 +6,26 @@ document.addEventListener("DOMContentLoaded", () => {
     clearMessage();
     lockButtons();
     stackMessage("Decoding...");
-    APNGExporter.get(decodeButton.files[0])
+    const jszip = new JSZip();
+    const file = decodeButton.files[0];
+    APNGExporter.get(file)
         .then(result => {
-            stackMessage(`Decoded: width=${result.width} px, height=${result.height} px, loop count=${result.loopCount}, duration=${result.duration}`)
-        }, err => {
+            stackMessage(`Decoded: width=${result.width} px, height=${result.height} px, loop count=${result.loopCount}, duration=${result.duration}`);
+            const nameSplit = splitFileName(file.name);
+
+            downloaderButton.disabled = false;
+            const promises = [];
+            for (let i = 0; i < result.frames.length; i++) {
+                promises.push(jszip.file(`${nameSplit.displayName}.frame${i}.png`, result.frames[i].blob))
+            }
+            return Promise.all(promises);
+        })
+        .then(() => jszip.generateAsync({ type: "blob" }))
+        .then(result => {
+            downloader.download = `${file.name}.zip`;
+            downloader.href = URL.createObjectURL(result, { oneTimeOnly: true });
+        })
+        .catch(err => {
             stackMessage(`Decode failed: ${err.message}`);
             console.error(err);
         })
