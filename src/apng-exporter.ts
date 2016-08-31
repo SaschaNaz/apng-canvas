@@ -21,8 +21,8 @@ namespace APNGExporter.CRC32 {
     export function generate(bytes: Uint8Array, start: number, length: number) {
         start = start || 0;
         length = length || (bytes.length - start);
-        var crc = -1;
-        for (var i = start, l = start + length; i < l; i++) {
+        let crc = -1;
+        for (let i = start, l = start + length; i < l; i++) {
             crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 0xFF];
         }
         return crc ^ (-1);
@@ -30,22 +30,80 @@ namespace APNGExporter.CRC32 {
 }
 
 namespace APNGExporter {
+    class FrameDrawer {
+        private _canvas: HTMLCanvasElement;
+        private _context: CanvasRenderingContext2D;
+        private _previousFrame: Frame;
+        private _previousRevertData: ImageData;
+
+        constructor(width: number, height: number) {
+            this._canvas = document.createElement("canvas");
+            this._context = this._canvas.getContext("2d");
+            this._canvas.width = width;
+            this._canvas.height = height;
+        }
+
+        async draw(frame: Frame) {
+            const context = this._context;
+
+            if (this._previousFrame) {
+                const previous = this._previousFrame;
+                if (previous.disposeOp == 1) {
+                    context.clearRect(previous.left, previous.top, previous.width, previous.height);
+                }
+                else if (previous.disposeOp == 2 && this._previousRevertData) {
+                    context.putImageData(this._previousRevertData, previous.left, previous.top);
+                }
+            }
+            this._previousFrame = frame;
+            this._previousRevertData = null;
+            if (this._previousFrame.disposeOp == 2) {
+                this._previousRevertData = context.getImageData(frame.left, frame.top, frame.width, frame.height);
+            }
+            if (frame.blendOp == 0) {
+                context.clearRect(frame.left, frame.top, frame.width, frame.height);
+            }
+            context.drawImage(await this._toImageElement(frame.blob), frame.left, frame.top);
+            return this._toBlob(this._canvas);
+        }
+
+        private async _toBlob(canvas: HTMLCanvasElement) {
+            if (canvas.toBlob) {
+                return new Promise<Blob>((resolve, reject) => {
+                    (canvas as any).toBlob((blob: Blob) => resolve(blob));
+                });
+            }
+            else if (canvas.msToBlob) {
+                return canvas.msToBlob();
+            }
+        }
+
+        private _toImageElement(blob: Blob) {
+            return new Promise<HTMLImageElement>((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = err => reject(err);
+                image.src = URL.createObjectURL(blob, { oneTimeOnly: true });
+            });
+        }
+    }
+
     // "\x89PNG\x0d\x0a\x1a\x0a"
     const PNG_SIGNATURE_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-    interface Frame {
+    export interface Frame {
         width: number;
         height: number;
         left: number;
         top: number;
         dataParts: Uint8Array[];
-        buffer: ArrayBuffer;
+        blob: Blob;
 
         delay: number;
         disposeOp: number;
         blendOp: number;
     }
-    interface ExportResult {
+    export interface DependentExportResult {
         width: number;
         height: number;
         loopCount: number;
@@ -56,7 +114,8 @@ namespace APNGExporter {
      * @param {ArrayBuffer} buffer
      * @return {Promise}
      */
-    export async function get(buffer: ArrayBuffer): Promise<ExportResult> {
+    export async function getDependent(input: ArrayBuffer | Blob): Promise<DependentExportResult> {
+        const buffer = input instanceof Blob ? await toArrayBuffer(input) : input;
         const bytes = new Uint8Array(buffer);
 
         for (let i = 0; i < PNG_SIGNATURE_BYTES.length; i++) {
@@ -90,7 +149,7 @@ namespace APNGExporter {
         let frame: Frame = null;
         const frames: Frame[] = [];
 
-        parseChunks(bytes, function (type, bytes, off, length) {
+        parseChunks(bytes, (type, bytes, off, length) => {
             switch (type) {
                 case "IHDR":
                     headerDataBytes = bytes.subarray(off + 8, off + 8 + length);
@@ -152,7 +211,7 @@ namespace APNGExporter {
                 bb.push(makeChunkBytes("IDAT", part));
             }
             bb.push(postBlob);
-            frame.buffer = await toArrayBuffer(new Blob(bb, { "type": "image/png" }));
+            frame.blob = new Blob(bb, { "type": "image/png" });
             delete frame.dataParts;
         }
 
@@ -166,6 +225,32 @@ namespace APNGExporter {
             reader.onload = () => resolve(reader.result);
             reader.readAsArrayBuffer(blob);
         });
+    }
+
+    export interface IndependentExportResult {
+        width: number;
+        height: number;
+        loopCount: number;
+        duration: number;
+        frames: Blob[];
+    }
+    export async function get(input: ArrayBuffer | Blob): Promise<IndependentExportResult> {
+        const dependent = await getDependent(input);
+        const drawer = new FrameDrawer(dependent.width, dependent.height);
+
+        const frames: Blob[] = [];
+
+        for (const frame of dependent.frames) {
+            frames.push(await drawer.draw(frame));
+        }
+
+        return {
+            width: dependent.width,
+            height: dependent.height,
+            loopCount: dependent.loopCount,
+            duration: dependent.duration,
+            frames
+        };
     }
 
     /**
