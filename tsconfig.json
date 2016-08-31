@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "noImplicitAny": true,
+        "suppressImplicitAnyIndexErrors": true,
+        "sourceMap": true,
+        "outFile": "built/apng-exporter.js"
+    },
+    "files": [
+        "src/parser.ts",
+        "src/crc32.ts"
+    ]
+}
