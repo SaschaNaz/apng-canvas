@@ -7,7 +7,6 @@
         "outFile": "built/apng-exporter.js"
     },
     "files": [
-        "src/parser.ts",
-        "src/crc32.ts"
+        "src/apng-exporter.ts"
     ]
 }
