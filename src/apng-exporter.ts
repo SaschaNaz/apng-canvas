@@ -234,7 +234,7 @@ namespace APNGExporter {
     }
 
     export interface IndependentFrame<T> {
-        data: T;
+        image: T;
         delay: number;
     }
     export interface IndependentExportResult<T> {
@@ -256,7 +256,7 @@ namespace APNGExporter {
 
         for (const frame of dependent.frames) {
             frames.push({
-                data: await drawer.draw(frame, resultType),
+                image: await drawer.draw(frame, resultType),
                 delay: frame.delay
             });
         }

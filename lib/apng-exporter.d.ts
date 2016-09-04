@@ -33,7 +33,7 @@ declare namespace APNGExporter {
      */
     function getDependent(input: ArrayBuffer | Blob): Promise<DependentExportResult>;
     interface IndependentFrame<T> {
-        data: T;
+        image: T;
         delay: number;
     }
     interface IndependentExportResult<T> {

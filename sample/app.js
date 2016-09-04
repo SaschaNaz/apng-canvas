@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
             downloaderButton.disabled = false;
             const promises = [];
             for (let i = 0; i < result.frames.length; i++) {
-                promises.push(jszip.file(`${nameSplit.displayName}.frame${i}.png`, result.frames[i].data))
+                promises.push(jszip.file(`${nameSplit.displayName}.frame${i}.png`, result.frames[i].image))
             }
             return Promise.all(promises);
         })
