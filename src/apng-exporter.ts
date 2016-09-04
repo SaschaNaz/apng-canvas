@@ -43,7 +43,10 @@ namespace APNGExporter {
             this._canvas.height = height;
         }
 
-        async draw(frame: DependentFrame) {
+        async draw(frame: DependentFrame, resultType?: "blob"): Promise<Blob>
+        async draw(frame: DependentFrame, resultType: "imagedata"): Promise<ImageData>
+        async draw(frame: DependentFrame, resultType?: "imagedata" | "blob"): Promise<ImageData | Blob>
+        async draw(frame: DependentFrame, resultType?: "imagedata" | "blob"): Promise<ImageData | Blob> {
             const context = this._context;
 
             if (this._previousFrame) {
@@ -64,6 +67,9 @@ namespace APNGExporter {
                 context.clearRect(frame.left, frame.top, frame.width, frame.height);
             }
             context.drawImage(await this._toImageElement(frame.blob), frame.left, frame.top);
+            if (resultType === "imagedata") {
+                return context.getImageData(0, 0, this._canvas.width, this._canvas.height);
+            }
             return this._toBlob(this._canvas);
         }
 
@@ -227,26 +233,30 @@ namespace APNGExporter {
         });
     }
 
-    export interface IndependentFrame {
-        blob: Blob;
+    export interface IndependentFrame<T> {
+        data: T;
         delay: number;
     }
-    export interface IndependentExportResult {
+    export interface IndependentExportResult<T> {
         width: number;
         height: number;
         loopCount: number;
         duration: number;
-        frames: IndependentFrame[];
+        frames: IndependentFrame<T>[];
     }
-    export async function get(input: ArrayBuffer | Blob): Promise<IndependentExportResult> {
+
+    export async function get(input: ArrayBuffer | Blob, resultType?: "blob"): Promise<IndependentExportResult<Blob>>;
+    export async function get(input: ArrayBuffer | Blob, resultType: "imagedata"): Promise<IndependentExportResult<ImageData>>;
+    export async function get(input: ArrayBuffer | Blob, resultType?: "imagedata" | "blob"): Promise<IndependentExportResult<ImageData | Blob>>;
+    export async function get(input: ArrayBuffer | Blob, resultType?: "imagedata" | "blob"): Promise<IndependentExportResult<ImageData | Blob>> {
         const dependent = await getDependent(input);
         const drawer = new FrameDrawer(dependent.width, dependent.height);
 
-        const frames: IndependentFrame[] = [];
+        const frames: IndependentFrame<ImageData | Blob>[] = [];
 
         for (const frame of dependent.frames) {
             frames.push({
-                blob: await drawer.draw(frame),
+                data: await drawer.draw(frame, resultType),
                 delay: frame.delay
             });
         }

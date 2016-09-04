@@ -32,16 +32,18 @@ declare namespace APNGExporter {
      * @return {Promise}
      */
     function getDependent(input: ArrayBuffer | Blob): Promise<DependentExportResult>;
-    interface IndependentFrame {
-        blob: Blob;
+    interface IndependentFrame<T> {
+        data: T;
         delay: number;
     }
-    interface IndependentExportResult {
+    interface IndependentExportResult<T> {
         width: number;
         height: number;
         loopCount: number;
         duration: number;
-        frames: IndependentFrame[];
+        frames: IndependentFrame<T>[];
     }
-    function get(input: ArrayBuffer | Blob): Promise<IndependentExportResult>;
+    function get(input: ArrayBuffer | Blob, resultType?: "blob"): Promise<IndependentExportResult<Blob>>;
+    function get(input: ArrayBuffer | Blob, resultType: "imagedata"): Promise<IndependentExportResult<ImageData>>;
+    function get(input: ArrayBuffer | Blob, resultType?: "imagedata" | "blob"): Promise<IndependentExportResult<ImageData | Blob>>;
 }
