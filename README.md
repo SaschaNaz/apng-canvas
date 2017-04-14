@@ -1,7 +1,7 @@
 APNG Exporter
 ==============
 
-Exports dependent/independent PNG frames from APNGs. Sample page [here](//saschanaz.github.io/apng-exporter);
+Exports dependent/independent PNG frames from APNGs. Sample page [here](//saschanaz.github.io/apng-exporter).
 
 ### API
 
